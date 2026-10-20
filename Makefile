@@ -1,6 +1,6 @@
 CC      := gcc
 TARGET  := run.exe
-OBJS    := main.o dft.o complex.o signal.o view.o plot.o
+OBJS    := main.o fft.o complex.o signal.o view.o plot.o twiddle.o
 CFLAGS  := -O2 -Wall -Wextra
 LDFLAGS := -mwindows
 LIBS    := -lgdi32 -luser32 -lm
@@ -13,12 +13,13 @@ $(TARGET): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-main.o:    main.c    dft.h signal.h plot.h view.h complex.h
-dft.o:     dft.c     dft.h complex.h
+main.o:    main.c    fft.h signal.h plot.h view.h complex.h
+fft.o:     fft.c     fft.h twiddle.h complex.h
 complex.o: complex.c complex.h
 signal.o:  signal.c  signal.h
 view.o:    view.c    view.h plot.h
 plot.o:    plot.c    plot.h
+twiddle.o: twiddle.c twiddle.h complex.h
 
 clean:
 	del /Q /F $(OBJS) $(TARGET) 2>NUL

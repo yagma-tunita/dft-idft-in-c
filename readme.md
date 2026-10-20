@@ -9,7 +9,10 @@ The project is intentionally minimal: no external dependencies beyond the Window
 ## Features
 
 - **Complex number arithmetic** implemented from scratch (`complex.h` / `complex.c`).
-- **Forward and inverse DFT** with `O(N^2)` complexity (`dft.h` / `dft.c`).
+- **Forward and inverse transforms** (`fft.h` / `fft.c`):
+  - Direct-sum **DFT / IDFT** with `O(N^2)` complexity.
+  - Radix-2 **FFT / IFFT** with `O(N log N)` complexity.
+- **Precomputed twiddle factors** (`twiddle.h` / `twiddle.c`) for the FFT butterfly stages.
 - **Signal generators** (`signal.h` / `signal.c`):
   - Pure and additive sine waves.
   - Uniform random noise.
@@ -62,11 +65,14 @@ The `Makefile` compiles with `-O2 -Wall -Wextra` and links with `-mwindows` so t
 run.exe
 ```
 
-A window titled `DFT / IDFT Win32 Test` opens and displays three stacked plots:
+A window titled `DFT vs FFT / IDFT vs IFFT` opens and displays four plots arranged in a `2 x 2` grid, each labeled with the elapsed time of the transform that produced it:
 
-1. **Time Domain** - the current input signal plotted over time in seconds.
-2. **Amplitude Spectrum** - the magnitude spectrum for bins `k = 0 .. N/2`, scaled as `2|X[k]| / N`.
-3. **IDFT Reconstruction** - the signal recovered from the full spectrum, with the maximum absolute reconstruction error shown in the title.
+1. **DFT Spectrum** (top-left) - magnitude spectrum from `Dft`, scaled as `2|X[k]| / N`.
+2. **FFT Spectrum** (top-right) - magnitude spectrum from `Fft`, on the same y-axis scale for direct comparison.
+3. **IDFT Reconstruction** (bottom-left) - signal recovered by `IDft`, with the maximum absolute error.
+4. **IFFT Reconstruction** (bottom-right) - signal recovered by `IFft`, with the maximum absolute error.
+
+The two spectra and the two reconstructions are drawn with identical axis ranges so that the DFT/FFT and IDFT/IFFT results can be compared visually, while the timing labels show the speed difference between the `O(N^2)` and `O(N log N)` algorithms.
 
 ### Controls
 
@@ -77,7 +83,7 @@ A window titled `DFT / IDFT Win32 Test` opens and displays three stacked plots:
 | `3` | Gaussian noise `N(0, 0.5^2)` |
 | `4` | Unit impulse at sample `0` |
 
-Pressing a key rebuilds the signal, recomputes the DFT/IDFT, and redraws the window.
+Pressing a key rebuilds the signal, reruns all four transforms, and redraws the window.
 
 ---
 
@@ -86,7 +92,8 @@ Pressing a key rebuilds the signal, recomputes the DFT/IDFT, and redraws the win
 ```
 fftLib/
 ├── complex.h / complex.c   Complex number type and arithmetic
-├── dft.h / dft.c           Forward and inverse DFT
+├── fft.h / fft.c           DFT, IDFT, FFT, and IFFT transforms
+├── twiddle.h / twiddle.c   Precomputed FFT twiddle-factor table
 ├── signal.h / signal.c     Signal generators and PRNG
 ├── plot.h / plot.c         Win32 GDI plotting primitives
 ├── view.h / view.c         Composes the three-plot scene
@@ -98,19 +105,21 @@ fftLib/
 ### Module responsibilities
 
 - **`complex`** defines `ComplexNumber { double re, im; }` together with helper macros (`Make`, `Add`, `Sub`, `Scale`, `Conjugate`, `MagnitudeSquared`) and functions (`Mult`, `Magnitude`, `Phase`, `ExpI`).
-- **`dft`** implements the direct-sum DFT and IDFT. The forward transform computes
+- **`fft`** implements both transform families. `Dft` / `IDft` compute the direct-sum transforms
 
   ```
   X[k] = sum(u=0..N-1) x[u] * exp(-j 2π k u / N)
   ```
 
-  and the inverse transform scales the conjugate-sum by `1/N`.
+  and the inverse transform scales the conjugate-sum by `1/N`. `Fft` / `IFft` implement the in-place radix-2 Cooley-Tukey algorithm with bit-reversal permutation and a twiddle-factor lookup table.
+
+- **`twiddle`** caches the complex roots of unity `exp(-j 2π i / N)` in a table allocated once per transform size and reused across butterfly stages. `IFft` reuses the same table through conjugation.
 
 - **`signal`** exposes `SignalSetSeed`, `SignalGenerateSine`, `SignalAddSine`, `SignalGenerateRandomUniform`, and `SignalGenerateRandomGaussian`. Random numbers come from a `xorshift64*` generator; the Gaussian sampler uses the Marsaglia polar method and caches the spare sample for efficiency.
 
 - **`plot`** provides `PlotRun` (the message loop and window class), `PlotDrawCurve`, `PlotDrawBars`, and `PlotDrawText`. All drawing is double-buffered through a memory device context to avoid flicker.
 
-- **`view`** lays out the three subplots and computes sensible axis ranges and units.
+- **`view`** lays out the four plots in a `2 x 2` grid, computes shared axis ranges for comparison, and formats the timing labels shown in each title.
 
 - **`main`** holds the application state, handles the `1`–`4` key bindings, and seeds the PRNG with a fixed value for reproducibility.
 
@@ -134,6 +143,6 @@ With `FS == N`, each DFT bin `k` corresponds directly to `k` Hz, so the spectrum
 
 ## Notes
 
-- The DFT here is the textbook `O(N^2)` implementation. It is intended for teaching and verification, not for performance-critical work. For large inputs, an FFT would be required.
+- Both transform families are called by the demo. `Dft` / `IDft` run in `O(N^2)`; `Fft` / `IFft` run in `O(N log N)` and require a power-of-two `N`. Each plot title shows the measured per-call time (averaged over `REPEAT` runs using the high-resolution `QueryPerformanceCounter`), making the speed difference visible alongside the identical numerical results.
 - The PRNG is seeded with a fixed value (`12345`) so results are reproducible across runs.
 - All user-facing text, identifiers, and documentation are in English.

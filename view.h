@@ -7,10 +7,16 @@ typedef struct
 {
     int           n;
     double        fs;
-    const double *time;
-    const double *amp;
-    const double *reconRe;
-    double        maxErr;
+    const double *ampDft;
+    const double *ampFft;
+    const double *reconDftRe;
+    const double *reconFftRe;
+    double        errDft;
+    double        errFft;
+    double        tDft;
+    double        tFft;
+    double        tIDft;
+    double        tIFft;
     const char   *signalName;
 } ViewData;
 
